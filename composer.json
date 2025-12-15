@@ -10,6 +10,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "google/analytics-admin": "^0.31.1",
         "google/analytics-data": "^0.23.1",
         "inertiajs/inertia-laravel": "^2.0",
         "laravel/fortify": "^1.30",
