@@ -111,11 +111,17 @@ test('generate snapshot creates new snapshot', function () {
 
     $mockService = $this->mock(GA4Service::class);
     $mockService->shouldReceive('getAccessTokenForConnection')->once()->andReturn('test-token');
-    $mockService->shouldReceive('getDemographics')->once()->andReturn([
+    $mockService->shouldReceive('getAllReports')->once()->andReturn([
         'devices' => [['category' => 'desktop', 'sessions' => 100, 'percentage' => 100.0]],
         'channels' => [['channel' => 'Direct', 'sessions' => 100, 'conversions' => 5, 'conversionRate' => 5.0]],
         'totals' => ['sessions' => 100, 'conversions' => 5, 'conversionRate' => 5.0],
         'dateRange' => ['startDate' => '2025-11-15', 'endDate' => '2025-12-15'],
+        'funnel' => [],
+        'exitRates' => [],
+        'scrollDepth' => [],
+        'landingPages' => ['desktop' => [], 'mobile' => []],
+        'productPages' => ['purchasers' => ['avgDuration' => 0.0, 'sessions' => 0], 'nonPurchasers' => ['avgDuration' => 0.0, 'sessions' => 0]],
+        'pagesBuckets' => [],
     ]);
 
     $this->actingAs($user);
@@ -136,11 +142,17 @@ test('generate snapshot updates rate limit timestamp', function () {
 
     $mockService = $this->mock(GA4Service::class);
     $mockService->shouldReceive('getAccessTokenForConnection')->once()->andReturn('test-token');
-    $mockService->shouldReceive('getDemographics')->once()->andReturn([
+    $mockService->shouldReceive('getAllReports')->once()->andReturn([
         'devices' => [],
         'channels' => [],
         'totals' => ['sessions' => 0, 'conversions' => 0, 'conversionRate' => 0.0],
         'dateRange' => ['startDate' => '2025-11-15', 'endDate' => '2025-12-15'],
+        'funnel' => [],
+        'exitRates' => [],
+        'scrollDepth' => [],
+        'landingPages' => ['desktop' => [], 'mobile' => []],
+        'productPages' => ['purchasers' => ['avgDuration' => 0.0, 'sessions' => 0], 'nonPurchasers' => ['avgDuration' => 0.0, 'sessions' => 0]],
+        'pagesBuckets' => [],
     ]);
 
     $this->actingAs($user);

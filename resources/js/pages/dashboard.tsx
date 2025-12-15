@@ -1,5 +1,6 @@
 import DashboardController from '@/actions/App/Http/Controllers/DashboardController';
 import GA4Controller from '@/actions/App/Http/Controllers/GA4Controller';
+import { ReportCard } from '@/components/report-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -9,8 +10,10 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { DataTable } from '@/components/ui/data-table';
 import { Skeleton } from '@/components/ui/skeleton';
 import AppLayout from '@/layouts/app-layout';
+import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Form, Head, Link, usePage } from '@inertiajs/react';
@@ -19,8 +22,11 @@ import {
     BarChart3,
     CheckCircle2,
     Clock,
+    Monitor,
     RefreshCw,
+    Smartphone,
 } from 'lucide-react';
+import { useState } from 'react';
 import {
     Bar,
     BarChart,
@@ -35,6 +41,7 @@ import {
 } from 'recharts';
 
 interface SnapshotData {
+    // Demographics (existing)
     devices: Array<{ category: string; sessions: number; percentage: number }>;
     channels: Array<{
         channel: string;
@@ -44,6 +51,44 @@ interface SnapshotData {
     }>;
     totals: { sessions: number; conversions: number; conversionRate: number };
     dateRange: { startDate: string; endDate: string };
+    // CRO Reports
+    funnel: Array<{ step: string; count: number; dropOffRate: number }>;
+    exitRates: Array<{
+        page: string;
+        exits: number;
+        pageviews: number;
+        exitRate: number;
+    }>;
+    scrollDepth: Array<{
+        page: string;
+        scrolled90Percent: number;
+        totalViews: number;
+        scrollRate: number;
+    }>;
+    landingPages: {
+        desktop: Array<{
+            page: string;
+            sessions: number;
+            conversions: number;
+            conversionRate: number;
+        }>;
+        mobile: Array<{
+            page: string;
+            sessions: number;
+            conversions: number;
+            conversionRate: number;
+        }>;
+    };
+    productPages: {
+        purchasers: { avgDuration: number; sessions: number };
+        nonPurchasers: { avgDuration: number; sessions: number };
+    };
+    pagesBuckets: Array<{
+        bucket: string;
+        sessions: number;
+        conversions: number;
+        conversionRate: number;
+    }>;
 }
 
 interface Connection {
@@ -369,7 +414,410 @@ function DashboardContent({
                     </CardContent>
                 </Card>
             </div>
+
+            {/* CRO Reports */}
+            <h2 className="text-xl font-semibold">Conversion Rate Optimization</h2>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+                <FunnelChart funnel={snapshot.data.funnel} />
+                <PagesBucketsChart pagesBuckets={snapshot.data.pagesBuckets} />
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+                <ProductPagesChart productPages={snapshot.data.productPages} />
+                <ScrollDepthChart scrollDepth={snapshot.data.scrollDepth} />
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+                <ExitRatesTable exitRates={snapshot.data.exitRates} />
+                <LandingPagesTable landingPages={snapshot.data.landingPages} />
+            </div>
         </div>
+    );
+}
+
+const FUNNEL_COLORS = ['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe'];
+
+function FunnelChart({
+    funnel,
+}: {
+    funnel: SnapshotData['funnel'];
+}) {
+    if (!funnel || funnel.length === 0) {
+        return (
+            <ReportCard
+                title="Funnel Drop-off Analysis"
+                description="Track conversion funnel performance"
+            >
+                <div className="flex h-[250px] items-center justify-center text-muted-foreground">
+                    No funnel data available
+                </div>
+            </ReportCard>
+        );
+    }
+
+    return (
+        <ReportCard
+            title="Funnel Drop-off Analysis"
+            description="Track conversion funnel performance"
+        >
+            <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={funnel} layout="vertical">
+                    <XAxis type="number" />
+                    <YAxis
+                        dataKey="step"
+                        type="category"
+                        width={100}
+                        tick={{ fontSize: 11 }}
+                    />
+                    <Tooltip
+                        formatter={(value: number, name: string) => [
+                            name === 'count'
+                                ? value.toLocaleString()
+                                : `${value}%`,
+                            name === 'count' ? 'Count' : 'Drop-off',
+                        ]}
+                    />
+                    <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                        {funnel.map((_, index) => (
+                            <Cell
+                                key={`cell-${index}`}
+                                fill={FUNNEL_COLORS[index % FUNNEL_COLORS.length]}
+                            />
+                        ))}
+                    </Bar>
+                </BarChart>
+            </ResponsiveContainer>
+            <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                {funnel.slice(1).map((step) => (
+                    <span
+                        key={step.step}
+                        className="rounded bg-muted px-2 py-1"
+                    >
+                        {step.step}: -{step.dropOffRate}% drop-off
+                    </span>
+                ))}
+            </div>
+        </ReportCard>
+    );
+}
+
+function PagesBucketsChart({
+    pagesBuckets,
+}: {
+    pagesBuckets: SnapshotData['pagesBuckets'];
+}) {
+    if (!pagesBuckets || pagesBuckets.length === 0) {
+        return (
+            <ReportCard
+                title="Conversion by Pages Viewed"
+                description="How page depth affects conversion rates"
+            >
+                <div className="flex h-[250px] items-center justify-center text-muted-foreground">
+                    No page view data available
+                </div>
+            </ReportCard>
+        );
+    }
+
+    return (
+        <ReportCard
+            title="Conversion by Pages Viewed"
+            description="How page depth affects conversion rates"
+        >
+            <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={pagesBuckets}>
+                    <XAxis dataKey="bucket" />
+                    <YAxis
+                        yAxisId="left"
+                        orientation="left"
+                        tickFormatter={(v) => v.toLocaleString()}
+                    />
+                    <YAxis
+                        yAxisId="right"
+                        orientation="right"
+                        tickFormatter={(v) => `${v}%`}
+                    />
+                    <Tooltip
+                        formatter={(value: number, name: string) => [
+                            name === 'conversionRate'
+                                ? `${value}%`
+                                : value.toLocaleString(),
+                            name === 'conversionRate'
+                                ? 'Conversion Rate'
+                                : 'Sessions',
+                        ]}
+                    />
+                    <Legend />
+                    <Bar
+                        yAxisId="left"
+                        dataKey="sessions"
+                        fill="#3b82f6"
+                        name="Sessions"
+                        radius={[4, 4, 0, 0]}
+                    />
+                    <Bar
+                        yAxisId="right"
+                        dataKey="conversionRate"
+                        fill="#10b981"
+                        name="Conversion Rate"
+                        radius={[4, 4, 0, 0]}
+                    />
+                </BarChart>
+            </ResponsiveContainer>
+        </ReportCard>
+    );
+}
+
+function ProductPagesChart({
+    productPages,
+}: {
+    productPages: SnapshotData['productPages'];
+}) {
+    if (!productPages) {
+        return (
+            <ReportCard
+                title="Time on Product Pages"
+                description="Compare session duration by purchase behavior"
+            >
+                <div className="flex h-[200px] items-center justify-center text-muted-foreground">
+                    No product page data available
+                </div>
+            </ReportCard>
+        );
+    }
+
+    const formatDuration = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.round(seconds % 60);
+        return `${mins}m ${secs}s`;
+    };
+
+    const data = [
+        {
+            name: 'Purchasers',
+            duration: productPages.purchasers.avgDuration,
+            sessions: productPages.purchasers.sessions,
+        },
+        {
+            name: 'Non-Purchasers',
+            duration: productPages.nonPurchasers.avgDuration,
+            sessions: productPages.nonPurchasers.sessions,
+        },
+    ];
+
+    return (
+        <ReportCard
+            title="Time on Product Pages"
+            description="Compare session duration by purchase behavior"
+        >
+            <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={data}>
+                    <XAxis dataKey="name" />
+                    <YAxis tickFormatter={(v) => `${Math.round(v / 60)}m`} />
+                    <Tooltip
+                        formatter={(value: number) => [
+                            formatDuration(value),
+                            'Avg Duration',
+                        ]}
+                    />
+                    <Bar dataKey="duration" radius={[4, 4, 0, 0]}>
+                        <Cell fill="#10b981" />
+                        <Cell fill="#ef4444" />
+                    </Bar>
+                </BarChart>
+            </ResponsiveContainer>
+            <div className="mt-2 flex justify-center gap-6 text-sm text-muted-foreground">
+                <span>
+                    Purchasers:{' '}
+                    {formatDuration(productPages.purchasers.avgDuration)} avg (
+                    {productPages.purchasers.sessions.toLocaleString()} sessions)
+                </span>
+            </div>
+        </ReportCard>
+    );
+}
+
+function ScrollDepthChart({
+    scrollDepth,
+}: {
+    scrollDepth: SnapshotData['scrollDepth'];
+}) {
+    if (!scrollDepth || scrollDepth.length === 0) {
+        return (
+            <ReportCard
+                title="Scroll Depth"
+                description="Percentage of visitors who scroll 90%+"
+            >
+                <div className="flex h-[200px] items-center justify-center text-muted-foreground">
+                    No scroll tracking data available
+                </div>
+            </ReportCard>
+        );
+    }
+
+    return (
+        <ReportCard
+            title="Scroll Depth"
+            description="Percentage of visitors who scroll 90%+"
+        >
+            <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={scrollDepth.slice(0, 6)} layout="vertical">
+                    <XAxis type="number" domain={[0, 100]} unit="%" />
+                    <YAxis
+                        dataKey="page"
+                        type="category"
+                        width={100}
+                        tick={{ fontSize: 10 }}
+                        tickFormatter={(v) =>
+                            v.length > 15 ? `${v.slice(0, 15)}...` : v
+                        }
+                    />
+                    <Tooltip
+                        formatter={(value: number) => [`${value}%`, '90%+ Scroll Rate']}
+                    />
+                    <Bar
+                        dataKey="scrollRate"
+                        fill="#8b5cf6"
+                        radius={[0, 4, 4, 0]}
+                    />
+                </BarChart>
+            </ResponsiveContainer>
+        </ReportCard>
+    );
+}
+
+function ExitRatesTable({
+    exitRates,
+}: {
+    exitRates: SnapshotData['exitRates'];
+}) {
+    const columns = [
+        {
+            key: 'page' as const,
+            header: 'Page',
+            className: 'max-w-[150px] truncate',
+        },
+        {
+            key: 'pageviews' as const,
+            header: 'Views',
+            className: 'text-right',
+            render: (value: number) => value.toLocaleString(),
+        },
+        {
+            key: 'exits' as const,
+            header: 'Exits',
+            className: 'text-right',
+            render: (value: number) => value.toLocaleString(),
+        },
+        {
+            key: 'exitRate' as const,
+            header: 'Exit Rate',
+            className: 'text-right',
+            render: (value: number) => (
+                <span
+                    className={cn(
+                        value > 40
+                            ? 'text-red-600 dark:text-red-400'
+                            : value > 25
+                              ? 'text-yellow-600 dark:text-yellow-400'
+                              : 'text-green-600 dark:text-green-400',
+                    )}
+                >
+                    {value}%
+                </span>
+            ),
+        },
+    ];
+
+    return (
+        <ReportCard
+            title="Exit Rate by Page"
+            description="Pages where visitors leave your site"
+        >
+            <DataTable
+                columns={columns}
+                data={exitRates?.slice(0, 8) ?? []}
+                emptyMessage="No exit rate data available"
+            />
+        </ReportCard>
+    );
+}
+
+function LandingPagesTable({
+    landingPages,
+}: {
+    landingPages: SnapshotData['landingPages'];
+}) {
+    const [activeTab, setActiveTab] = useState<'desktop' | 'mobile'>('desktop');
+
+    const columns = [
+        {
+            key: 'page' as const,
+            header: 'Page',
+            className: 'max-w-[120px] truncate',
+        },
+        {
+            key: 'sessions' as const,
+            header: 'Sessions',
+            className: 'text-right',
+            render: (value: number) => value.toLocaleString(),
+        },
+        {
+            key: 'conversions' as const,
+            header: 'Conv.',
+            className: 'text-right',
+            render: (value: number) => value.toLocaleString(),
+        },
+        {
+            key: 'conversionRate' as const,
+            header: 'Rate',
+            className: 'text-right',
+            render: (value: number) => `${value}%`,
+        },
+    ];
+
+    const data = activeTab === 'desktop'
+        ? landingPages?.desktop ?? []
+        : landingPages?.mobile ?? [];
+
+    return (
+        <ReportCard
+            title="Landing Pages by Device"
+            description="Top landing pages split by device type"
+        >
+            <div className="mb-4 flex gap-2">
+                <button
+                    onClick={() => setActiveTab('desktop')}
+                    className={cn(
+                        'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors',
+                        activeTab === 'desktop'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted hover:bg-muted/80',
+                    )}
+                >
+                    <Monitor className="size-4" />
+                    Desktop
+                </button>
+                <button
+                    onClick={() => setActiveTab('mobile')}
+                    className={cn(
+                        'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors',
+                        activeTab === 'mobile'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted hover:bg-muted/80',
+                    )}
+                >
+                    <Smartphone className="size-4" />
+                    Mobile
+                </button>
+            </div>
+            <DataTable
+                columns={columns}
+                data={data.slice(0, 5)}
+                emptyMessage="No landing page data available"
+            />
+        </ReportCard>
     );
 }
 

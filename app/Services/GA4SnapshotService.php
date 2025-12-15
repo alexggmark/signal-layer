@@ -20,14 +20,14 @@ class GA4SnapshotService
     {
         $accessToken = $this->ga4Service->getAccessTokenForConnection($connection);
 
-        $demographicsData = $this->ga4Service->getDemographics(
+        $allReportsData = $this->ga4Service->getAllReports(
             $connection->property_id,
             $accessToken
         );
 
         $snapshot = GA4Snapshot::create([
             'connection_id' => $connection->id,
-            'snapshot_data' => $demographicsData,
+            'snapshot_data' => $allReportsData,
             'generated_at' => now(),
             'expires_at' => now()->addDays(7),
         ]);
