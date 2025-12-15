@@ -5,6 +5,12 @@ namespace App\Services;
 use App\Models\GA4Connection;
 use Google\Analytics\Admin\V1beta\Client\AnalyticsAdminServiceClient;
 use Google\Analytics\Admin\V1beta\ListAccountSummariesRequest;
+use Google\Analytics\Data\V1beta\Client\BetaAnalyticsDataClient;
+use Google\Analytics\Data\V1beta\DateRange;
+use Google\Analytics\Data\V1beta\Dimension;
+use Google\Analytics\Data\V1beta\Metric;
+use Google\Analytics\Data\V1beta\RunReportRequest;
+use Google\Analytics\Data\V1beta\RunReportResponse;
 use Illuminate\Support\Facades\Http;
 
 class GA4Service
@@ -160,6 +166,152 @@ class GA4Service
             'access_token' => $accessToken,
             'expires_in' => 3600,
             'token_type' => 'Bearer',
+        ];
+    }
+
+    /**
+     * Fetch demographics data from GA4 for a property.
+     *
+     * @return array{
+     *     devices: array<int, array{category: string, sessions: int, percentage: float}>,
+     *     channels: array<int, array{channel: string, sessions: int, conversions: int, conversionRate: float}>,
+     *     totals: array{sessions: int, conversions: int, conversionRate: float},
+     *     dateRange: array{startDate: string, endDate: string}
+     * }
+     *
+     * @throws \Exception
+     */
+    public function getDemographics(string $propertyId, string $accessToken): array
+    {
+        $client = new BetaAnalyticsDataClient([
+            'credentials' => $this->createCredentialsFromToken($accessToken),
+        ]);
+
+        try {
+            $deviceResponse = $this->runDeviceReport($client, $propertyId);
+            $channelResponse = $this->runChannelReport($client, $propertyId);
+
+            return $this->transformDemographicsResponse($deviceResponse, $channelResponse);
+        } finally {
+            $client->close();
+        }
+    }
+
+    /**
+     * Run the device breakdown report.
+     */
+    protected function runDeviceReport(BetaAnalyticsDataClient $client, string $propertyId): RunReportResponse
+    {
+        $request = (new RunReportRequest)
+            ->setProperty($propertyId)
+            ->setDateRanges([
+                new DateRange([
+                    'start_date' => '30daysAgo',
+                    'end_date' => 'today',
+                ]),
+            ])
+            ->setDimensions([
+                new Dimension(['name' => 'deviceCategory']),
+            ])
+            ->setMetrics([
+                new Metric(['name' => 'sessions']),
+            ]);
+
+        return $client->runReport($request);
+    }
+
+    /**
+     * Run the channel breakdown report.
+     */
+    protected function runChannelReport(BetaAnalyticsDataClient $client, string $propertyId): RunReportResponse
+    {
+        $request = (new RunReportRequest)
+            ->setProperty($propertyId)
+            ->setDateRanges([
+                new DateRange([
+                    'start_date' => '30daysAgo',
+                    'end_date' => 'today',
+                ]),
+            ])
+            ->setDimensions([
+                new Dimension(['name' => 'sessionDefaultChannelGroup']),
+            ])
+            ->setMetrics([
+                new Metric(['name' => 'sessions']),
+                new Metric(['name' => 'conversions']),
+                new Metric(['name' => 'sessionConversionRate']),
+            ]);
+
+        return $client->runReport($request);
+    }
+
+    /**
+     * Transform raw GA4 responses into structured array.
+     *
+     * @return array{
+     *     devices: array<int, array{category: string, sessions: int, percentage: float}>,
+     *     channels: array<int, array{channel: string, sessions: int, conversions: int, conversionRate: float}>,
+     *     totals: array{sessions: int, conversions: int, conversionRate: float},
+     *     dateRange: array{startDate: string, endDate: string}
+     * }
+     */
+    protected function transformDemographicsResponse(
+        RunReportResponse $deviceResponse,
+        RunReportResponse $channelResponse
+    ): array {
+        $totalSessions = 0;
+        $devices = [];
+
+        foreach ($deviceResponse->getRows() as $row) {
+            $sessions = (int) $row->getMetricValues()[0]->getValue();
+            $totalSessions += $sessions;
+            $devices[] = [
+                'category' => $row->getDimensionValues()[0]->getValue(),
+                'sessions' => $sessions,
+                'percentage' => 0.0,
+            ];
+        }
+
+        foreach ($devices as &$device) {
+            $device['percentage'] = $totalSessions > 0
+                ? round(($device['sessions'] / $totalSessions) * 100, 1)
+                : 0.0;
+        }
+
+        $channels = [];
+        $totalConversions = 0;
+
+        foreach ($channelResponse->getRows() as $row) {
+            $sessions = (int) $row->getMetricValues()[0]->getValue();
+            $conversions = (int) $row->getMetricValues()[1]->getValue();
+            $conversionRate = (float) $row->getMetricValues()[2]->getValue();
+
+            $totalConversions += $conversions;
+
+            $channels[] = [
+                'channel' => $row->getDimensionValues()[0]->getValue(),
+                'sessions' => $sessions,
+                'conversions' => $conversions,
+                'conversionRate' => round($conversionRate * 100, 2),
+            ];
+        }
+
+        usort($channels, fn ($a, $b) => $b['sessions'] <=> $a['sessions']);
+
+        return [
+            'devices' => $devices,
+            'channels' => $channels,
+            'totals' => [
+                'sessions' => $totalSessions,
+                'conversions' => $totalConversions,
+                'conversionRate' => $totalSessions > 0
+                    ? round(($totalConversions / $totalSessions) * 100, 2)
+                    : 0.0,
+            ],
+            'dateRange' => [
+                'startDate' => now()->subDays(30)->toDateString(),
+                'endDate' => now()->toDateString(),
+            ],
         ];
     }
 }

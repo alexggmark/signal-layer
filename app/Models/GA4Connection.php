@@ -6,6 +6,8 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class GA4Connection extends Model
 {
@@ -107,5 +109,22 @@ class GA4Connection extends Model
     public function markReportGenerated(): void
     {
         $this->update(['last_report_generated_at' => Carbon::now()]);
+    }
+
+    /**
+     * Get all snapshots for this connection.
+     */
+    public function snapshots(): HasMany
+    {
+        return $this->hasMany(GA4Snapshot::class, 'connection_id');
+    }
+
+    /**
+     * Get the latest snapshot for this connection.
+     */
+    public function latestSnapshot(): HasOne
+    {
+        return $this->hasOne(GA4Snapshot::class, 'connection_id')
+            ->latestOfMany('generated_at');
     }
 }
