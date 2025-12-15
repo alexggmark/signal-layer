@@ -162,17 +162,11 @@ class GA4Service
     }
 
     /**
-     * Create credentials array from an access token.
-     *
-     * @return array<string, mixed>
+     * Create credentials from an access token.
      */
-    protected function createCredentialsFromToken(string $accessToken): array
+    protected function createCredentialsFromToken(string $accessToken): GoogleAccessTokenCredentials
     {
-        return [
-            'access_token' => $accessToken,
-            'expires_in' => 3600,
-            'token_type' => 'Bearer',
-        ];
+        return new GoogleAccessTokenCredentials($accessToken);
     }
 
     /**
