@@ -22,7 +22,7 @@ test('service generate creates snapshot with all report data', function () {
             'totals' => ['sessions' => 1000, 'conversions' => 50, 'conversionRate' => 5.0],
             'dateRange' => ['startDate' => '2025-11-15', 'endDate' => '2025-12-15'],
             'funnel' => [['step' => 'Session Start', 'count' => 1000, 'dropOffRate' => 0.0]],
-            'exitRates' => [['page' => '/', 'exits' => 100, 'pageviews' => 500, 'exitRate' => 20.0]],
+            'exitRates' => [['page' => '/', 'bounceRate' => 20.0, 'pageviews' => 500, 'exitRate' => 20.0]],
             'scrollDepth' => [['page' => '/', 'scrolled90Percent' => 200, 'totalViews' => 500, 'scrollRate' => 40.0]],
             'landingPages' => ['desktop' => [], 'mobile' => []],
             'productPages' => ['purchasers' => ['avgDuration' => 120.0, 'sessions' => 50], 'nonPurchasers' => ['avgDuration' => 60.0, 'sessions' => 450]],

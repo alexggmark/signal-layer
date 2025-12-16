@@ -50,11 +50,11 @@ class GA4SnapshotFactory extends Factory
                     ['step' => 'Purchase', 'count' => 450, 'dropOffRate' => 50.0],
                 ],
                 'exitRates' => [
-                    ['page' => '/', 'exits' => 800, 'pageviews' => 3000, 'exitRate' => 26.7],
-                    ['page' => '/products', 'exits' => 450, 'pageviews' => 2000, 'exitRate' => 22.5],
-                    ['page' => '/cart', 'exits' => 350, 'pageviews' => 1000, 'exitRate' => 35.0],
-                    ['page' => '/checkout', 'exits' => 200, 'pageviews' => 800, 'exitRate' => 25.0],
-                    ['page' => '/about', 'exits' => 180, 'pageviews' => 600, 'exitRate' => 30.0],
+                    ['page' => '/', 'bounceRate' => 26.7, 'pageviews' => 3000, 'exitRate' => 26.7],
+                    ['page' => '/products', 'bounceRate' => 22.5, 'pageviews' => 2000, 'exitRate' => 22.5],
+                    ['page' => '/cart', 'bounceRate' => 35.0, 'pageviews' => 1000, 'exitRate' => 35.0],
+                    ['page' => '/checkout', 'bounceRate' => 25.0, 'pageviews' => 800, 'exitRate' => 25.0],
+                    ['page' => '/about', 'bounceRate' => 30.0, 'pageviews' => 600, 'exitRate' => 30.0],
                 ],
                 'scrollDepth' => [
                     ['page' => '/', 'scrolled90Percent' => 1200, 'totalViews' => 3000, 'scrollRate' => 40.0],

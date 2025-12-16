@@ -55,7 +55,7 @@ interface SnapshotData {
     funnel: Array<{ step: string; count: number; dropOffRate: number }>;
     exitRates: Array<{
         page: string;
-        exits: number;
+        bounceRate: number;
         pageviews: number;
         exitRate: number;
     }>;
@@ -705,14 +705,8 @@ function ExitRatesTable({
             render: (value: number) => value.toLocaleString(),
         },
         {
-            key: 'exits' as const,
-            header: 'Exits',
-            className: 'text-right',
-            render: (value: number) => value.toLocaleString(),
-        },
-        {
-            key: 'exitRate' as const,
-            header: 'Exit Rate',
+            key: 'bounceRate' as const,
+            header: 'Bounce Rate',
             className: 'text-right',
             render: (value: number) => (
                 <span
@@ -732,8 +726,8 @@ function ExitRatesTable({
 
     return (
         <ReportCard
-            title="Exit Rate by Page"
-            description="Pages where visitors leave your site"
+            title="Bounce Rate by Page"
+            description="Pages where visitors leave without engaging"
         >
             <DataTable
                 columns={columns}

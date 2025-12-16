@@ -460,7 +460,7 @@ class GA4Service
                 new Dimension(['name' => 'pagePath']),
             ])
             ->setMetrics([
-                new Metric(['name' => 'exits']),
+                new Metric(['name' => 'bounceRate']),
                 new Metric(['name' => 'screenPageViews']),
             ])
             ->setOrderBys([
@@ -477,22 +477,21 @@ class GA4Service
     /**
      * Transform exit rate response.
      *
-     * @return array<int, array{page: string, exits: int, pageviews: int, exitRate: float}>
+     * @return array<int, array{page: string, bounceRate: float, pageviews: int, exitRate: float}>
      */
     protected function transformExitRateResponse(RunReportResponse $response): array
     {
         $exitRates = [];
 
         foreach ($response->getRows() as $row) {
-            $exits = (int) $row->getMetricValues()[0]->getValue();
+            $bounceRate = (float) $row->getMetricValues()[0]->getValue();
             $pageviews = (int) $row->getMetricValues()[1]->getValue();
-            $exitRate = $pageviews > 0 ? round(($exits / $pageviews) * 100, 1) : 0.0;
 
             $exitRates[] = [
                 'page' => $row->getDimensionValues()[0]->getValue(),
-                'exits' => $exits,
+                'bounceRate' => round($bounceRate * 100, 1),
                 'pageviews' => $pageviews,
-                'exitRate' => $exitRate,
+                'exitRate' => round($bounceRate * 100, 1),
             ];
         }
 
@@ -674,7 +673,7 @@ class GA4Service
             ->setMetrics([
                 new Metric(['name' => 'averageSessionDuration']),
                 new Metric(['name' => 'sessions']),
-                new Metric(['name' => 'purchasers']),
+                new Metric(['name' => 'transactions']),
             ]);
 
         return $client->runReport($request);
@@ -697,11 +696,11 @@ class GA4Service
         foreach ($response->getRows() as $row) {
             $avgDuration = (float) $row->getMetricValues()[0]->getValue();
             $sessions = (int) $row->getMetricValues()[1]->getValue();
-            $purchasers = (int) $row->getMetricValues()[2]->getValue();
+            $transactions = (int) $row->getMetricValues()[2]->getValue();
 
             $totalDuration += $avgDuration * $sessions;
             $totalSessions += $sessions;
-            $purchaserSessions += $purchasers;
+            $purchaserSessions += $transactions;
         }
 
         $overallAvgDuration = $totalSessions > 0 ? $totalDuration / $totalSessions : 0.0;
